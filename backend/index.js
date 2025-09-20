@@ -8,53 +8,99 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const N8N_API_URL = 'http://localhost:5678/api/v1/workflows';
-const N8N_API_KEY = process.env.N8N_API_KEY; // Set in .env
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Set in .env
 
-app.post('/generate-workflow', async (req, res) => {
-  const { prompt } = req.body;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Set in .env
+
+
+// Gemini endpoint: receives prompt, returns Gemini JSON response
+app.post('/gemini', async (req, res) => {
+  let { prompt } = req.body;
   try {
-    // Call LLM (OpenAI example; replace with xAI/Grok or Gemini)
-    const llmResponse = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
+    // Add system instruction to force JSON output
+    const systemPrompt =
+      `
+      ## 📝 General Prompt for Generating n8n Workflow JSON
+
+*Prompt:*
+
+You are an expert in building n8n workflows. I want you to generate a valid n8n workflow in JSON format.
+
+### Rules:
+
+1. The JSON must strictly follow the *n8n workflow schema* as per official documentation.
+
+   * *Top-level fields:*
+
+     * name (string) – workflow name
+     * nodes (array) – list of all nodes
+     * connections (object) – defines how nodes are linked
+     * settings (object, optional) – workflow-wide settings
+     * active (boolean) – whether the workflow is active
+   * *Each node must contain:*
+
+     * parameters (object) – node configuration
+     * name (string) – unique node name
+     * type (string) – node type (e.g., "n8n-nodes-base.httpRequest")
+     * typeVersion (integer) – version of node type
+     * position (array [x, y]) – UI position of node
+
+2. *Connections must reference valid node names* and be structured like this:
+
+   json
+   "connections": {
+     "Start": {
+       "main": [
+         [
+           {
+             "node": "Next Node",
+             "type": "main",
+             "index": 0
+           }
+         ]
+       ]
+     }
+   }
+   
+
+3. *Do not include any explanation or text outside of JSON.* Output only the workflow JSON.
+
+4. *Customize based on my request.* For example, if I say:
+
+   * “Webhook → HTTP Request → Google Sheets” → Build a workflow that triggers via webhook, makes an API call, and stores data in Google Sheets.
+   * “Cron → Slack” → Build a scheduled message sender to Slack.
+
+      `;
+    const fullPrompt = `${systemPrompt}\n${prompt}`;
+
+    const geminiResponse = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY,
       {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'Convert this user request into a valid n8n workflow JSON with name, nodes, and connections. Example: {"name": "Workflow", "nodes": [], "connections": {}}. Ensure nodes use n8n-compatible types like "n8n-nodes-base.httpRequest".',
-          },
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
+        contents: [
+          { parts: [{ text: fullPrompt }] }
+        ]
       },
       {
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
       }
     );
 
-    const workflowJson = llmResponse.data.choices[0].message.content;
-    const parsedJson = JSON.parse(workflowJson);
-
-    // Send JSON to n8n
-    const n8nResponse = await axios.post(N8N_API_URL, parsedJson, {
-      headers: {
-        'X-N8N-API-KEY': N8N_API_KEY,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    res.json({
-      message: 'Workflow created in n8n',
-      n8nResponse: n8nResponse.data,
-    });
+    let result = geminiResponse.data;
+    if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+      let text = result.candidates[0].content.parts[0].text.trim();
+      // Remove code block markers if present
+      text = text.replace(/^```json\n|^```|```$/g, '').trim();
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        result = { text };
+      }
+    }
+    res.json(result);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Error generating or saving workflow', error: error.message });
+    console.error(error.response?.data || error);
+    res.status(500).json({ message: 'Error calling Gemini', error: error.message });
   }
 });
 

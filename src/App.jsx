@@ -12,8 +12,8 @@ function App() {
     setError(null);
     setResponse(null);
     try {
-      // Send natural language input to backend
-      const res = await axios.post('http://localhost:3000/generate-workflow', {
+      // Send prompt to Gemini backend endpoint
+      const res = await axios.post('http://localhost:3000/gemini', {
         prompt: data.userInput,
       });
       setResponse(res.data);
