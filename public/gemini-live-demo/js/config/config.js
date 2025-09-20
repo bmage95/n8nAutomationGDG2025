@@ -2,7 +2,7 @@ export const getWebsocketUrl = () => {
     // Auto-set API key if not already set
     let apiKey = localStorage.getItem('apiKey');
     if (!apiKey) {
-        apiKey = 'AIzaSyDG5wfea79XKJ82lIy0BJ98ibeTh67FZtE'; // Your API key
+        apiKey = process.env.GOOGLE_API_KEY; 
         localStorage.setItem('apiKey', apiKey);
     }
     return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
