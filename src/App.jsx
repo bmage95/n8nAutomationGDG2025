@@ -83,7 +83,6 @@ function App() {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const onSubmit = async (data) => {
     setError(null);
     setResponse(null);
@@ -99,7 +98,6 @@ function App() {
       setLoading(false);
     }
   };
-
   return (
     <>
       <AnimatedCursor />
@@ -108,35 +106,32 @@ function App() {
           <div className="title-container">
             <h1 className="title">Create n8n Workflow</h1>
           </div>
-
           <p className="subtitle">
             Describe your automation (e.g.,
             <span>"Send an email when a new tweet is posted"</span>)
           </p>
-
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="textarea-wrapper">
-                 <textarea
-                    {...register('userInput', { required: 'Input is required' })}
-                    placeholder="Enter your automation request..."
-                    className="textarea"
-                    />
+              <textarea
+                {...register('userInput', { required: 'Input is required' })}
+                placeholder="Enter your automation request..."
+                className="textarea"
+              />
             </div>
-
-            {errors.userInput &&
-                <p className="error">
-                    <ErrorIcon />
-                    {errors.userInput.message}
-                </p>
-            }
+            {errors.userInput && (
+              <p className="error">
+                <ErrorIcon />
+                {errors.userInput.message}
+              </p>
+            )}
             <button type="submit" className="button" disabled={loading}>
               {loading ? '⏳ Generating...' : 'Generate Workflow'}
             </button>
           </form>
-
           {response && (
             <div className="result">
               <h3>Workflow Generated</h3>
+              <p style={{ color: '#bbf7d0' }}>Successfully generated! View it <a href="http://localhost:5678/home/workflows" target="_blank" rel="noopener noreferrer" style={{ color: '#6D28D9', textDecoration: 'underline' }}>here</a>.</p>
               <pre>{JSON.stringify(response, null, 2)}</pre>
             </div>
           )}
@@ -151,5 +146,4 @@ function App() {
     </>
   );
 }
-
 export default App;
