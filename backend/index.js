@@ -1,108 +1,112 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const dotenv = require('dotenv');
-// const { GoogleGenerativeAI } = require('@google/generative-ai');
+import { useForm } from 'react-hook-form';
+import axios from 'axios';
+import './App.css';
+import { useState, useEffect, useRef } from 'react';
 
-dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json());
+// ✅ 1. All cursor logic is now encapsulated in its own component.
+function CursorTrailer() {
+  const trailerRef = useRef(null);
 
+  useEffect(() => {
+    const trailer = trailerRef.current;
+    if (!trailer) return;
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Set in .env
+    let mouseX = 0;
+    let mouseY = 0;
+    let trailerX = 0;
+    let trailerY = 0;
+    const speed = 0.1;
 
+    const handleMouseMove = (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
 
-// Gemini endpoint: receives prompt, returns Gemini JSON response
-app.post('/gemini', async (req, res) => {
-  let { prompt } = req.body;
-  try {
-    // Add system instruction to force JSON output
-    const systemPrompt =
-      `
-      ## 📝 General Prompt for Generating n8n Workflow JSON
-
-*Prompt:*
-
-You are an expert in building n8n workflows. I want you to generate a valid n8n workflow in JSON format.
-
-### Rules:
-
-1. The JSON must strictly follow the *n8n workflow schema* as per official documentation.
-
-   * *Top-level fields:*
-
-     * name (string) – workflow name
-     * nodes (array) – list of all nodes
-     * connections (object) – defines how nodes are linked
-     * settings (object, optional) – workflow-wide settings
-     * active (boolean) – whether the workflow is active
-   * *Each node must contain:*
-
-     * parameters (object) – node configuration
-     * name (string) – unique node name
-     * type (string) – node type (e.g., "n8n-nodes-base.httpRequest")
-     * typeVersion (integer) – version of node type
-     * position (array [x, y]) – UI position of node
-
-2. *Connections must reference valid node names* and be structured like this:
-
-   json
-   "connections": {
-     "Start": {
-       "main": [
-         [
-           {
-             "node": "Next Node",
-             "type": "main",
-             "index": 0
-           }
-         ]
-       ]
-     }
-   }
-   
-
-3. *Do not include any explanation or text outside of JSON.* Output only the workflow JSON.
-
-4. *Customize based on my request.* For example, if I say:
-
-   * “Webhook → HTTP Request → Google Sheets” → Build a workflow that triggers via webhook, makes an API call, and stores data in Google Sheets.
-   * “Cron → Slack” → Build a scheduled message sender to Slack.
-
-      `;
-    const fullPrompt = `${systemPrompt}\n${prompt}`;
-
-    const geminiResponse = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY,
-      {
-        contents: [
-          { parts: [{ text: fullPrompt }] }
-        ]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const target = e.target;
+      if (target.closest('.textarea, .button')) {
+        trailer.classList.add('active');
+      } else {
+        trailer.classList.remove('active');
       }
-    );
+    };
 
-    let result = geminiResponse.data;
-    if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
-      let text = result.candidates[0].content.parts[0].text.trim();
-      // Remove code block markers if present
-      text = text.replace(/^```json\n|^```|```$/g, '').trim();
-      try {
-        result = JSON.parse(text);
-      } catch (e) {
-        result = { text };
-      }
+    const animateTrailer = () => {
+      const dx = mouseX - trailerX;
+      const dy = mouseY - trailerY;
+      trailerX += dx * speed;
+      trailerY += dy * speed;
+      trailer.style.transform = `translate(${trailerX}px, ${trailerY}px)`;
+      requestAnimationFrame(animateTrailer);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    const animationFrameId = requestAnimationFrame(animateTrailer);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <div ref={trailerRef} className="cursor-trailer"></div>;
+}
+
+
+// ✅ 2. The App component is now much simpler and focused.
+function App() {
+  const { register, handleSubmit, formState: { errors } } = useForm();
+  const [response, setResponse] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const onSubmit = async (data) => {
+    setError(null);
+    setResponse(null);
+    setLoading(true);
+    try {
+      const res = await axios.post('http://localhost:3000/gemini', {
+        prompt: data.userInput,
+      });
+      setResponse(res.data);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error calling backend');
+    } finally {
+      // ✅ 3. Bug fixed: `finally` ensures loading is always set to false.
+      setLoading(false);
     }
-    res.json(result);
-  } catch (error) {
-    console.error(error.response?.data || error);
-    res.status(500).json({ message: 'Error calling Gemini', error: error.message });
-  }
-});
+  };
 
-app.listen(3000, () => console.log('Backend running on http://localhost:3000'));
+  return (
+    <>
+      <CursorTrailer /> {/* Just drop the new component in! */}
+      <div className="app-container">
+        <div className="card">
+          <h1 className="title">Create n8n Workflow</h1>
+          <p className="subtitle">
+            Describe your automation (e.g.,
+            <span>"Send an email when a new tweet is posted"</span>)
+          </p>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <textarea
+              {...register('userInput', { required: 'Input is required' })}
+              placeholder="Enter your automation request..."
+              className="textarea"
+            />
+            {errors.userInput && <p className="error">{errors.userInput.message}</p>}
+            <button type="submit" className="button" disabled={loading}>
+              {loading ? '⏳ Generating...' : 'Generate Workflow'}
+            </button>
+          </form>
+          {response && (
+            <div className="result">
+              <h3>Result</h3>
+              <pre>{JSON.stringify(response, null, 2)}</pre>
+            </div>
+          )}
+          {error && <p className="error">{error}</p>}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default App;

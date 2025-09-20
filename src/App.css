@@ -1,14 +1,62 @@
+/* Define the background animation */
+@keyframes pan-background {
+  0% {
+    background-position: 0% 50%;
+    background-size: 150%;
+  }
+  50% {
+    background-position: 100% 50%;
+    background-size: 160%;
+  }
+  100% {
+    background-position: 0% 50%;
+    background-size: 150%;
+  }
+}
+
 body {
   margin: 0;
   font-family: 'Inter', Arial, sans-serif;
-  background: url('https://images.unsplash.com/photo-1604856420566-576ba98b53cd?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') 
-    no-repeat center center fixed;
-  background-size: cover;
+  background-image: url('https://images.unsplash.com/photo-1604856420566-576ba98b53cd?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  background-size: 150%;
+  background-repeat: no-repeat;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  /* Apply the animation */
+  animation: pan-background 45s ease-in-out infinite;
+  overflow: hidden; /* Prevent scrollbars from animation */
+  cursor: none; /* Hide the default cursor */
 }
+
+/* Ensure interactive elements also hide the default cursor */
+.button, .textarea {
+  cursor: none;
+}
+
+/* Custom Cursor Trailer Styles */
+.cursor-trailer {
+  position: fixed;
+  top: -10px; /* Start off-screen */
+  left: -10px;
+  width: 20px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none; /* Crucial: allows clicking through the trailer */
+  z-index: 9999;
+  transition: transform 0.2s ease, background-color 0.3s ease, width 0.3s ease, height 0.3s ease;
+  backdrop-filter: blur(2px);
+}
+
+/* Active state for when hovering over interactive elements */
+.cursor-trailer.active {
+  width: 40px;
+  height: 40px;
+  background-color: rgba(99, 102, 241, 0.3);
+}
+
 
 /* Glassmorphic Card */
 .card {
@@ -20,7 +68,7 @@ body {
   padding: 40px;
   width: 100%;
   max-width: 650px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 25px rgba(81, 51, 51, 0.25);
   text-align: center;
   color: #fff;
 }
@@ -72,7 +120,7 @@ body {
   color: white;
   font-size: 1rem;
   font-weight: 600;
-  cursor: pointer;
+  /* cursor: pointer; */ /* Replaced by custom cursor */
   transition: transform 0.2s ease, background 0.3s ease;
   width: 100%;
 }
@@ -84,7 +132,7 @@ body {
 
 .button:disabled {
   background: rgba(148, 163, 184, 0.4);
-  cursor: not-allowed;
+  /* cursor: not-allowed; */ /* Replaced by custom cursor */
 }
 
 /* Error */
@@ -108,3 +156,44 @@ body {
   overflow-x: auto;
   color: #bbf7d0;
 }
+
+/* hide default cursor globally (your earlier code had this) */
+body, .button, .textarea {
+  cursor: none;
+}
+
+/* cursor ring (frosted/soft) */
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(2px);
+  mix-blend-mode: normal;
+}
+
+/* cursor dot (center) */
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.45), inset 0 -2px 6px rgba(0,0,0,0.2);
+}
+
+/* small helper: make interactive elements declare intent (optional)
+   you can add data-cursor attributes to elements to force types:
+   <button data-cursor="interactive">...</button>
+   <p data-cursor="text">Selectable text</p>
+*/
