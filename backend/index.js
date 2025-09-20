@@ -73,7 +73,7 @@ app.post('/n8n-workflow', async (req, res) => {
 
     // 1. Get workflow JSON from Gemini
     const geminiResponse = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=' + GEMINI_API_KEY,
       {
         contents: [{ parts: [{ text: fullPrompt }] }],
       },
