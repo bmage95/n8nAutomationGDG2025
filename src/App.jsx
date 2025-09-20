@@ -142,6 +142,30 @@ function App() {
             </p>
           )}
         </div>
+        
+        {/* Gemini Live Button */}
+        <div 
+          className="gemini-card" 
+          onClick={() => {
+            alert('Gemini card clicked! Opening demo...');
+            window.open('/gemini-live-demo/index.html', '_blank');
+          }}
+        >
+          <div className="gemini-content">
+            <div className="gemini-icon">
+              ✨
+            </div>
+            <h2 className="gemini-title">Gemini Live Chat</h2>
+            <p className="gemini-description">
+              Voice & video AI assistant with real-time conversation
+            </p>
+            <div className="gemini-features">
+              <span className="feature-tag">🎤 Voice</span>
+              <span className="feature-tag">📷 Camera</span>
+              <span className="feature-tag">🖥️ Screen</span>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
