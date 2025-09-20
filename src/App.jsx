@@ -89,10 +89,12 @@ function App() {
     setResponse(null);
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setResponse({ workflow: "Simulated response for UI testing." });
+      const res = await axios.post('http://localhost:3000/n8n-workflow', {
+        prompt: data.userInput,
+      });
+      setResponse(res.data);
     } catch (err) {
-      setError('An error occurred while generating the workflow.');
+      setError(err.response?.data?.message || 'An error occurred while generating the workflow.');
     } finally {
       setLoading(false);
     }
@@ -137,6 +139,12 @@ function App() {
               <h3>Workflow Generated</h3>
               <pre>{JSON.stringify(response, null, 2)}</pre>
             </div>
+          )}
+          {error && (
+            <p className="error">
+              <ErrorIcon />
+              {error}
+            </p>
           )}
         </div>
       </div>
