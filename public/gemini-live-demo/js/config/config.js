@@ -1,10 +1,6 @@
 export const getWebsocketUrl = () => {
-    // Auto-set API key if not already set
-    let apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) {
-        apiKey = process.env.GOOGLE_API_KEY; 
-        localStorage.setItem('apiKey', apiKey);
-    }
+    // Get API key from localStorage (set via settings UI)
+    const apiKey = localStorage.getItem('apiKey') || '';
     return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 };
 
