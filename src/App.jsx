@@ -1,82 +1,83 @@
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { useState, useEffect } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
 
-/* --- CursorTrailer using Framer Motion (smooth spring follow + states) --- */
-function CursorTrailer() {
-  // motion values for pointer position
-  const pointerX = useMotionValue(-100);
-  const pointerY = useMotionValue(-100);
+// --- Components ---
 
-  // smooth springs for really nice follow motion
-  const springConfig = { stiffness: 800, damping: 40 };
-  const x = useSpring(pointerX, springConfig);
-  const y = useSpring(pointerY, springConfig);
+const N8nLogo = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="logo-svg">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" fill="white"/>
+  </svg>
+);
 
-  const [isHoverInteractive, setIsHoverInteractive] = useState(false);
-  const [isTextSelectable, setIsTextSelectable] = useState(false);
-  const [isPressed, setIsPressed] = useState(false);
+const ErrorIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="error-icon">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+);
+
+function AnimatedCursor() {
+  const cursorDotRef = useRef(null);
+  const cursorRingRef = useRef(null);
 
   useEffect(() => {
-    const onMove = (e) => {
-      pointerX.set(e.clientX);
-      pointerY.set(e.clientY);
+    const dot = cursorDotRef.current;
+    const ring = cursorRingRef.current;
+    if (!dot || !ring) return;
 
-      const t = e.target;
-      // define what counts as "interactive" or "text" in your app
-      const interactive = !!t.closest('button, a, input, textarea, select, .button, .textarea, [data-cursor="interactive"]');
-      const text = !!t.closest('p, span, label, input, textarea, .selectable, [data-cursor="text"]');
+    let mouseX = 0, mouseY = 0;
+    let ringX = 0, ringY = 0;
+    let dotX = 0, dotY = 0;
+    const ringSpeed = 0.15;
+    const dotSpeed = 0.9;
 
-      setIsHoverInteractive(interactive);
-      setIsTextSelectable(text);
+    const handleMouseMove = (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
     };
 
-    const onDown = () => setIsPressed(true);
-    const onUp = () => setIsPressed(false);
+    const animateCursor = () => {
+      ringX += (mouseX - ringX) * ringSpeed;
+      ringY += (mouseY - ringY) * ringSpeed;
+      if(ring.style) ring.style.transform = `translate(${ringX - ring.clientWidth / 2}px, ${ringY - ring.clientHeight / 2}px)`;
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointerup', onUp);
+      dotX += (mouseX - dotX) * dotSpeed;
+      dotY += (mouseY - dotY) * dotSpeed;
+      if(dot.style) dot.style.transform = `translate(${dotX - dot.clientWidth / 2}px, ${dotY - dot.clientHeight / 2}px)`;
+      
+      const target = document.elementFromPoint(mouseX, mouseY);
+      if (target?.closest('.textarea, .button')) {
+        ring.classList.add('active');
+      } else {
+        ring.classList.remove('active');
+      }
+
+      requestAnimationFrame(animateCursor);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    const animFrame = requestAnimationFrame(animateCursor);
 
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      cancelAnimationFrame(animFrame);
     };
-  }, [pointerX, pointerY]);
-
-  // sizes / styles derived from state
-  const ringSize = isHoverInteractive ? 44 : isTextSelectable ? 24 : 30;
-  const ringBg = isHoverInteractive ? 'rgba(99,102,241,0.14)' : 'rgba(255,255,255,0.04)';
-  const dotSize = isTextSelectable ? 6 : 10;
-  const dotBg = isHoverInteractive ? 'rgba(99,102,241,0.9)' : 'rgba(255,255,255,0.95)';
-  const scale = isPressed ? 0.86 : 1;
+  }, []);
 
   return (
     <>
-      {/* outer ring */}
-      <motion.div
-        className="cursor-ring"
-        style={{ x, y }}
-        animate={{ width: ringSize, height: ringSize, backgroundColor: ringBg, scale }}
-        transition={{ type: 'spring', stiffness: 700, damping: 35 }}
-      />
-
-      {/* center dot */}
-      <motion.div
-        className="cursor-dot"
-        style={{ x, y }}
-        animate={{ width: dotSize, height: dotSize, backgroundColor: dotBg, scale }}
-        transition={{ type: 'spring', stiffness: 700, damping: 35 }}
-      />
+      <div ref={cursorRingRef} className="cursor-ring"></div>
+      <div ref={cursorDotRef} className="cursor-dot"></div>
     </>
   );
 }
 
 
-/* --- Main App (unchanged logic, just uses CursorTrailer) --- */
+// --- Main App Component ---
+
 function App() {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const [response, setResponse] = useState(null);
@@ -88,12 +89,10 @@ function App() {
     setResponse(null);
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:3000/gemini', {
-        prompt: data.userInput,
-      });
-      setResponse(res.data);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setResponse({ workflow: "Simulated response for UI testing." });
     } catch (err) {
-      setError(err.response?.data?.message || 'Error calling backend');
+      setError('An error occurred while generating the workflow.');
     } finally {
       setLoading(false);
     }
@@ -101,31 +100,44 @@ function App() {
 
   return (
     <>
-      <CursorTrailer />
+      <AnimatedCursor />
       <div className="app-container">
         <div className="card">
-          <h1 className="title">Create n8n Workflow</h1>
+          <div className="title-container">
+            <h1 className="title">Create n8n Workflow</h1>
+          </div>
+
           <p className="subtitle">
-            Describe your automation (e.g., <span>"Send an email when a new tweet is posted"</span>)
+            Describe your automation (e.g.,
+            <span>"Send an email when a new tweet is posted"</span>)
           </p>
+
           <form onSubmit={handleSubmit(onSubmit)}>
-            <textarea
-              {...register('userInput', { required: 'Input is required' })}
-              placeholder="Enter your automation request..."
-              className="textarea"
-            />
-            {errors.userInput && <p className="error">{errors.userInput.message}</p>}
+            <div className="textarea-wrapper">
+                 <textarea
+                    {...register('userInput', { required: 'Input is required' })}
+                    placeholder="Enter your automation request..."
+                    className="textarea"
+                    />
+            </div>
+
+            {errors.userInput &&
+                <p className="error">
+                    <ErrorIcon />
+                    {errors.userInput.message}
+                </p>
+            }
             <button type="submit" className="button" disabled={loading}>
               {loading ? '⏳ Generating...' : 'Generate Workflow'}
             </button>
           </form>
+
           {response && (
             <div className="result">
-              <h3>Result</h3>
+              <h3>Workflow Generated</h3>
               <pre>{JSON.stringify(response, null, 2)}</pre>
             </div>
           )}
-          {error && <p className="error">{error}</p>}
         </div>
       </div>
     </>
