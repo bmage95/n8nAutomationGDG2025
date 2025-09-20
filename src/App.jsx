@@ -130,8 +130,30 @@ function App() {
           </form>
           {response && (
             <div className="result">
-              <h3>Workflow Generated</h3>
-              <p style={{ color: '#bbf7d0' }}>Successfully generated! View it <a href="http://localhost:5678/home/workflows" target="_blank" rel="noopener noreferrer" style={{ color: '#6D28D9', textDecoration: 'underline' }}>here</a>.</p>
+              <h3>Workflow Generated!!</h3>
+              <div className="result-header">
+                <p style={{ color: '#bbf7d0', margin: 0 }}>
+                  Successfully generated, view it: {' '}
+                  <a 
+                    href="http://localhost:5678/home/workflows" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    style={{ color: '#6D28D9', textDecoration: 'underline' }}
+                  >
+                    here
+                  </a>
+                </p>
+                <button 
+                  className="copy-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(response, null, 2));
+                    // You could add a toast notification here
+                    alert('JSON copied to clipboard!');
+                  }}
+                >
+                  Copy JSON
+                </button>
+              </div>
               <pre>{JSON.stringify(response, null, 2)}</pre>
             </div>
           )}
