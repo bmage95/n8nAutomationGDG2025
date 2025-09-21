@@ -83,6 +83,7 @@ function App() {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
   const onSubmit = async (data) => {
     setError(null);
     setResponse(null);
@@ -98,6 +99,7 @@ function App() {
       setLoading(false);
     }
   };
+
   return (
     <>
       <AnimatedCursor />
@@ -128,6 +130,15 @@ function App() {
               {loading ? '⏳ Generating...' : 'Generate Workflow'}
             </button>
           </form>
+
+          {/* --- MODIFICATION START --- */}
+          {loading && (
+            <p style={{ color: '#ef4444', textAlign: 'center', marginTop: '12px', fontSize: '0.8rem' }}>
+              Make sure you have n8n set up with keys!
+            </p>
+          )}
+          {/* --- MODIFICATION END --- */}
+
           {response && (
             <div className="result">
               <h3>Workflow Generated!!</h3>
@@ -192,4 +203,5 @@ function App() {
     </>
   );
 }
+
 export default App;

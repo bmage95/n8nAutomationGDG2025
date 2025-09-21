@@ -21,7 +21,10 @@ const N8N_API_KEY = process.env.N8N_API_KEY;
 const N8N_API_URL = 'http://localhost:5678/api/v1/workflows';
 
 // --- Google Auth Client ---
+const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+
 const auth = new GoogleAuth({
+    credentials,
     scopes: 'https://www.googleapis.com/auth/cloud-platform'
 });
 
