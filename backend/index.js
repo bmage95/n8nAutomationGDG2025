@@ -138,6 +138,63 @@ function applyRequirementsToWorkflow(workflowJson, requirements) {
   return workflowJson;
 }
 
+// --- Helpers: Robust JSON parsing from model output ---
+/** Strip Markdown code fences from text */
+function stripCodeFences(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+}
+
+/** Extract the first balanced JSON value (object or array) from arbitrary text */
+function extractFirstJsonValue(text) {
+  if (!text) throw new Error('Empty text');
+  const s = String(text);
+  let start = -1;
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{' || ch === '[') {
+      if (stack.length === 0) start = i;
+      stack.push(ch === '{' ? '}' : ']');
+    } else if ((ch === '}' || ch === ']') && stack.length > 0) {
+      const expected = stack[stack.length - 1];
+      if (ch === expected) stack.pop();
+      if (stack.length === 0 && start !== -1) {
+        return s.slice(start, i + 1);
+      }
+    }
+  }
+  throw new Error('No balanced JSON value found');
+}
+
+/** Parse model output into JSON, tolerating extra prose */
+function parseModelJson(text) {
+  const stripped = stripCodeFences(text);
+  const jsonStr = extractFirstJsonValue(stripped);
+  return JSON.parse(jsonStr);
+}
+
 // Shared system prompt
 const SYSTEM_PROMPT = `
 You are an expert in building n8n workflows. Generate a valid n8n workflow in JSON format that strictly matches the following structure and constraints.
@@ -207,15 +264,15 @@ Rules:
 const REQUIREMENTS_PROMPT = `
 You are an expert in analyzing automation requests for n8n workflows. Your task is to analyze a user's automation request and return a JSON object that identifies ALL the specific technical details needed to build a production-ready workflow.
 
-IMPORTANT: Be comprehensive and ask for ALL necessary details including:
-- Authentication credentials and API keys
-- Server/service connection details (SMTP, database connections, etc.)
-- Specific configuration parameters
-- Input/output data formats
-- Error handling preferences
-- Security and privacy settings
-- Scheduling and timing details
-- Notification preferences
+IMPORTANT: Be comprehensive but concise — only ask up to 8 essential questions to cover:
+1. Authentication credentials or API keys
+2. Connection details (SMTP, database, webhook, etc.)
+3. Input data format and source
+4. Output data format and destination
+5. Workflow trigger type and timing
+6. Configuration parameters (filters, templates, etc.)
+7. Error handling or fallback preferences
+8. Notification preferences (if any)
 
 Return ONLY a JSON object with this exact structure:
 {
@@ -243,60 +300,7 @@ Return ONLY a JSON object with this exact structure:
     }
   ]
 }
-
-Example for "Send daily email report":
-{
-  "workflowSkeleton": {
-    "name": "Daily Email Report Automation",
-    "description": "Sends automated daily email reports with specified content",
-    "triggerType": "schedule",
-    "steps": [
-      {"stepNumber": 1, "action": "Trigger at scheduled time", "nodeType": "n8n-nodes-base.scheduleTrigger", "placeholder": "SCHEDULE_CONFIG"},
-      {"stepNumber": 2, "action": "Prepare email content", "nodeType": "n8n-nodes-base.set", "placeholder": "EMAIL_CONTENT"},
-      {"stepNumber": 3, "action": "Send email via SMTP", "nodeType": "n8n-nodes-base.emailSend", "placeholder": "SMTP_CONFIG"}
-    ]
-  },
-  "requiredFields": [
-    {"fieldName": "SCHEDULE_CONFIG", "label": "Schedule Time (Cron)", "type": "text", "description": "Cron expression for when to send (e.g., '0 7 * * *' for 7 AM daily)", "required": true},
-    {"fieldName": "SMTP_HOST", "label": "SMTP Server", "type": "text", "description": "SMTP server hostname (e.g., smtp.gmail.com)", "required": true},
-    {"fieldName": "SMTP_PORT", "label": "SMTP Port", "type": "number", "description": "SMTP port number (587 for TLS, 465 for SSL)", "required": true},
-    {"fieldName": "SMTP_SECURITY", "label": "Email Security", "type": "dropdown", "options": ["none", "starttls", "tls"], "description": "Security protocol for email", "required": true},
-    {"fieldName": "SENDER_EMAIL", "label": "Sender Email", "type": "email", "description": "Email address to send from", "required": true},
-    {"fieldName": "SENDER_NAME", "label": "Sender Name", "type": "text", "description": "Display name for sender", "required": true},
-    {"fieldName": "SENDER_PASSWORD", "label": "Email Password/App Password", "type": "password", "description": "Password or app-specific password for sender email", "required": true},
-    {"fieldName": "RECIPIENT_EMAIL", "label": "Recipient Email", "type": "email", "description": "Email address to send report to", "required": true},
-    {"fieldName": "EMAIL_SUBJECT", "label": "Email Subject", "type": "text", "description": "Subject line for the daily report", "required": true},
-    {"fieldName": "EMAIL_BODY", "label": "Email Content", "type": "textarea", "description": "Content/template for the email body (supports HTML)", "required": true},
-    {"fieldName": "TIMEZONE", "label": "Timezone", "type": "dropdown", "options": ["UTC", "America/New_York", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Asia/Tokyo"], "description": "Timezone for scheduling", "required": true}
-  ]
-}
-
-Example for "Slack notification when GitHub issue created":
-{
-  "workflowSkeleton": {
-    "name": "GitHub Issue to Slack Notification",
-    "description": "Sends Slack messages when new GitHub issues are created",
-    "triggerType": "webhook",
-    "steps": [
-      {"stepNumber": 1, "action": "Receive GitHub webhook", "nodeType": "n8n-nodes-base.webhook", "placeholder": "WEBHOOK_CONFIG"},
-      {"stepNumber": 2, "action": "Filter issue events", "nodeType": "n8n-nodes-base.if", "placeholder": "FILTER_CONFIG"},
-      {"stepNumber": 3, "action": "Send Slack message", "nodeType": "n8n-nodes-base.slack", "placeholder": "SLACK_CONFIG"}
-    ]
-  },
-  "requiredFields": [
-    {"fieldName": "GITHUB_REPO", "label": "GitHub Repository", "type": "text", "description": "Repository name (format: owner/repo-name)", "required": true},
-    {"fieldName": "SLACK_TOKEN", "label": "Slack Bot Token", "type": "password", "description": "Slack app bot token (starts with xoxb-)", "required": true},
-    {"fieldName": "SLACK_CHANNEL", "label": "Slack Channel", "type": "text", "description": "Channel to post messages (e.g., #general or channel ID)", "required": true},
-    {"fieldName": "MESSAGE_TEMPLATE", "label": "Message Template", "type": "textarea", "description": "Slack message template (can use GitHub issue data)", "required": true},
-    {"fieldName": "ISSUE_LABELS", "label": "Filter by Labels", "type": "text", "description": "Only notify for issues with these labels (comma-separated, optional)", "required": false},
-    {"fieldName": "ASSIGNEE_FILTER", "label": "Filter by Assignee", "type": "text", "description": "Only notify when assigned to specific users (comma-separated, optional)", "required": false}
-  ]
-}
-
-ALWAYS ask for authentication details, connection parameters, and all configuration needed for a complete, working n8n workflow.
-
-Analyze the user's request and return only the JSON.
-`;
+`
 
 // New endpoint: extract requirements from user query
 app.post('/extract-requirements', async (req, res) => {
@@ -327,11 +331,10 @@ app.post('/extract-requirements', async (req, res) => {
       console.log('--- Raw Requirements Text from Gemini ---');
       console.log(text);
 
-      text = text.replace(/^```json\n|^```|```$/g, '').trim();
       try {
-  requirementsJson = JSON.parse(text);
-  // Enrich with domain-specific fields
-  requirementsJson = enrichRequirements(requirementsJson);
+        requirementsJson = parseModelJson(text);
+        // Enrich with domain-specific fields
+        requirementsJson = enrichRequirements(requirementsJson);
         console.log('--- Parsed Requirements JSON ---');
         console.dir(requirementsJson, { depth: null });
       } catch (e) {
@@ -416,10 +419,8 @@ app.post('/n8n-workflow', async (req, res) => {
       let text = workflowJson.candidates[0].content.parts[0].text.trim();
       console.log('--- Raw Text from Gemini ---');
       console.log(text);
-
-      text = text.replace(/^```json\n|^```|```$/g, '').trim();
       try {
-        workflowJson = JSON.parse(text);
+        workflowJson = parseModelJson(text);
         // Validate JSON structure
         if (!workflowJson.name || !workflowJson.nodes || !workflowJson.connections || !workflowJson.settings) {
           throw new Error('Invalid JSON structure: Missing required fields (name, nodes, connections, settings)');
