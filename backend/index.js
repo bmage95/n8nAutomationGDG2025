@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const { v4: uuidv4 } = require('uuid');
 const { GoogleAuth } = require('google-auth-library');
+const fs = require('fs');
 
 dotenv.config();
 const app = express();
@@ -169,20 +170,60 @@ Rules:
 
 8. For nodes requiring credentials (e.g., Google Sheets, Slack), set parameters with placeholder values (e.g., authentication: "oAuth2") but do not include a credentials object unless specified.
 
-9. ABSOLUTELY CRITICAL - REQUIREMENTS IMPLEMENTATION:
-   - If the user provides specific requirements/values anywhere in the prompt, you MUST use those exact values in the node parameters
-   - NEVER use placeholder values like "example@email.com", "your-password", "Your Subject Here" when real values are provided
-   - Look for patterns like "SMTP_HOST: smtp.gmail.com" and use "smtp.gmail.com" in the SMTP configuration
-   - Look for patterns like "RECIPIENT_EMAIL: user@example.com" and use "user@example.com" in the email node
-   - Look for patterns like "EMAIL_SUBJECT: Daily Report" and use "Daily Report" as the subject
-   - The node parameters MUST reflect the actual user-provided values, not generic placeholders
-   - This is a HARD REQUIREMENT - failure to use provided values makes the workflow useless
+Do not add parameters that you are unsure about. Refer to the documentation for the exact json and params.
+
+***ATTENTION***
+If you need to add a typeversion, 
+preferably add 2.1 like for send email add 2.1
+ instead of 3.1 etc and Make sure that the id of the node is proper
+
+
+9. example of calendar trigger:
+   {
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "calendarId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "triggerOn": "eventCancelled",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTrigger",
+      "typeVersion": 1,
+      "position": [
+        542.5,
+        128
+      ],
+      "id": "d395442e-3927-41ec-a2b8-9351bfa495e6",
+      "name": "Google Calendar Trigger"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "instanceId": "d1c2fca825712eda646b876f38ccbf54aab636ae27dd2d0e1ebc111fda9d6626"
+  }
+}
 
 10. PARAMETER MAPPING EXAMPLES:
     - For email nodes: use provided SMTP_HOST, SMTP_PORT, SENDER_EMAIL, RECIPIENT_EMAIL, EMAIL_SUBJECT, EMAIL_BODY
     - For schedule nodes: use provided SCHEDULE_CONFIG, TIMEZONE  
     - For Slack nodes: use provided SLACK_TOKEN, SLACK_CHANNEL, MESSAGE_TEMPLATE
     - For webhook nodes: use provided configuration values
+
+
+I have added a pdf for your reference so that you know how to do things, go through it thoroughly.
+
 `;
 
 const REQUIREMENTS_PROMPT = `
@@ -221,94 +262,101 @@ Return ONLY a JSON object with this exact structure:
 `;
 
 // --- API Endpoints ---
-app.post('/extract-requirements', async (req, res) => {
-    const { prompt } = req.body;
-    try {
-        const fullPrompt = `${REQUIREMENTS_PROMPT}\n\nUser Request: ${prompt}`;
+// app.post('/extract-requirements', async (req, res) => {
+//     const { prompt } = req.body;
+//     try {
+//         const fullPrompt = `${REQUIREMENTS_PROMPT}\n\nUser Request: ${prompt}`;
 
-        const client = await auth.getClient();
-        const accessToken = (await client.getAccessToken()).token;
+//         const client = await auth.getClient();
+//         const accessToken = (await client.getAccessToken()).token;
 
-        const vertexAIResponse = await axios.post(
-            VERTEX_AI_API_URL,
-            {
-                "contents": [{
-                    "role": "user", // <-- ADDED THIS LINE
-                    "parts": [{ "text": fullPrompt }]
-                }]
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+//         const vertexAIResponse = await axios.post(
+//             VERTEX_AI_API_URL,
+//             {
+//                 "contents": [{
+//                     "role": "user", // <-- ADDED THIS LINE
+//                     "parts": [{ "text": fullPrompt }]
+//                 }]
+//             },
+//             {
+//                 headers: {
+//                     'Authorization': `Bearer ${accessToken}`,
+//                     'Content-Type': 'application/json'
+//                 }
+//             }
+//         );
 
-        let requirementsJson = vertexAIResponse.data;
-        if (requirementsJson.candidates && requirementsJson.candidates[0]?.content?.parts[0]?.text) {
-            let text = requirementsJson.candidates[0].content.parts[0].text.trim();
-            text = text.replace(/^```json\n|^```|```$/g, '').trim();
-            try {
-                requirementsJson = JSON.parse(text);
-                requirementsJson = enrichRequirements(requirementsJson);
-                res.json({
-                    message: 'Requirements extracted successfully',
-                    requirements: requirementsJson,
-                });
-            } catch (e) {
-                return res.status(400).json({ message: 'Vertex AI did not return valid requirements JSON', error: e.message, text });
-            }
-        } else {
-            return res.status(400).json({ message: 'No valid requirements response from Vertex AI', data: requirementsJson });
-        }
-    } catch (error) {
-        console.error('Requirements extraction error:', error.response ? error.response.data : error.message);
-        res.status(500).json({
-            message: 'Error extracting requirements',
-            error: error.message,
-        });
-    }
-});
+//         let requirementsJson = vertexAIResponse.data;
+//         if (requirementsJson.candidates && requirementsJson.candidates[0]?.content?.parts[0]?.text) {
+//             let text = requirementsJson.candidates[0].content.parts[0].text.trim();
+//             text = text.replace(/^```json\n|^```|```$/g, '').trim();
+//             try {
+//                 requirementsJson = JSON.parse(text);
+//                 requirementsJson = enrichRequirements(requirementsJson);
+//                 res.json({
+//                     message: 'Requirements extracted successfully',
+//                     requirements: requirementsJson,
+//                 });
+//             } catch (e) {
+//                 return res.status(400).json({ message: 'Vertex AI did not return valid requirements JSON', error: e.message, text });
+//             }
+//         } else {
+//             return res.status(400).json({ message: 'No valid requirements response from Vertex AI', data: requirementsJson });
+//         }
+//     } catch (error) {
+//         console.error('Requirements extraction error:', error.response ? error.response.data : error.message);
+//         res.status(500).json({
+//             message: 'Error extracting requirements',
+//             error: error.message,
+//         });
+//     }
+// });
 
 app.post('/n8n-workflow', async (req, res) => {
     let { prompt, requirements } = req.body;
     try {
         let enhancedPrompt = prompt;
         if (requirements && Object.keys(requirements).length > 0) {
-           enhancedPrompt += `\n\n=== USER PROVIDED SPECIFIC CONFIGURATION VALUES ===\n`;
-           enhancedPrompt += `The user has provided these exact values. You MUST use these in the node parameters:\n\n`;
-           for (const [fieldName, value] of Object.entries(requirements)) {
-               enhancedPrompt += `${fieldName}: "${value}"\n`;
-           }
-           enhancedPrompt += `\n=== MANDATORY PARAMETER MAPPING ===\n`;
-           enhancedPrompt += `- SMTP_HOST → Use in email node's "host" parameter\n`;
-           enhancedPrompt += `- SMTP_PORT → Use in email node's "port" parameter\n`;
-           enhancedPrompt += `- SMTP_SECURITY → Use in email node's "secure" parameter (true for SSL, false for TLS)\n`;
-           enhancedPrompt += `- SENDER_EMAIL → Use in email node's "fromEmail" parameter\n`;
-           enhancedPrompt += `- SENDER_NAME → Use in email node's "fromName" parameter\n`;
-           enhancedPrompt += `- SENDER_PASSWORD → Use in email node's "password" parameter\n`;
-           enhancedPrompt += `- RECIPIENT_EMAIL → Use in email node's "to" parameter\n`;
-           enhancedPrompt += `- EMAIL_SUBJECT → Use in email node's "subject" parameter\n`;
-           enhancedPrompt += `- EMAIL_BODY → Use in email node's "text" or "html" parameter\n`;
-           enhancedPrompt += `- SCHEDULE_CONFIG → Use in schedule node's cron expression\n`;
-           enhancedPrompt += `- TIMEZONE → Use in schedule node's "timezone" parameter\n`;
-           enhancedPrompt += `\nEXAMPLE: If SENDER_EMAIL is "john@company.com", the email node must have "fromEmail": "john@company.com"\n`;
-           enhancedPrompt += `EXAMPLE: If EMAIL_SUBJECT is "Daily Sales Report", the email node must have "subject": "Daily Sales Report"\n`;
-           enhancedPrompt += `DO NOT use placeholder values like "example@email.com" - use the EXACT provided values!\n`;
+          //  enhancedPrompt += `\n\n=== USER PROVIDED SPECIFIC CONFIGURATION VALUES ===\n`;
+          //  enhancedPrompt += `The user has provided these exact values. You MUST use these in the node parameters:\n\n`;
+          //  for (const [fieldName, value] of Object.entries(requirements)) {
+          //      enhancedPrompt += `${fieldName}: "${value}"\n`;
+          //  }
+          //  enhancedPrompt += `\n=== MANDATORY PARAMETER MAPPING ===\n`;
+          //  enhancedPrompt += `- SMTP_HOST → Use in email node's "host" parameter\n`;
+          //  enhancedPrompt += `- SMTP_PORT → Use in email node's "port" parameter\n`;
+          //  enhancedPrompt += `- SMTP_SECURITY → Use in email node's "secure" parameter (true for SSL, false for TLS)\n`;
+          //  enhancedPrompt += `- SENDER_EMAIL → Use in email node's "fromEmail" parameter\n`;
+          //  enhancedPrompt += `- SENDER_NAME → Use in email node's "fromName" parameter\n`;
+          //  enhancedPrompt += `- SENDER_PASSWORD → Use in email node's "password" parameter\n`;
+          //  enhancedPrompt += `- RECIPIENT_EMAIL → Use in email node's "to" parameter\n`;
+          //  enhancedPrompt += `- EMAIL_SUBJECT → Use in email node's "subject" parameter\n`;
+          //  enhancedPrompt += `- EMAIL_BODY → Use in email node's "text" or "html" parameter\n`;
+          //  enhancedPrompt += `- SCHEDULE_CONFIG → Use in schedule node's cron expression\n`;
+          //  enhancedPrompt += `- TIMEZONE → Use in schedule node's "timezone" parameter\n`;
+          //  enhancedPrompt += `\nEXAMPLE: If SENDER_EMAIL is "john@company.com", the email node must have "fromEmail": "john@company.com"\n`;
+          //  enhancedPrompt += `EXAMPLE: If EMAIL_SUBJECT is "Daily Sales Report", the email node must have "subject": "Daily Sales Report"\n`;
+          //  enhancedPrompt += `DO NOT use placeholder values like "example@email.com" - use the EXACT provided values!\n`;
         }
 
         const fullPrompt = `${SYSTEM_PROMPT}\n${enhancedPrompt}`;
         
         const client = await auth.getClient();
         const accessToken = (await client.getAccessToken()).token;
+
+        const pdfPath = 'master.pdf'; // put your path here
+        const pdfBuffer = fs.readFileSync(pdfPath);
+        const pdfBase64 = pdfBuffer.toString('base64');
         
         const vertexAIResponse = await axios.post(
             VERTEX_AI_API_URL,
             {
                 "contents": [{
-                    "role": "user", // <-- ADDED THIS LINE
-                    "parts": [{ "text": fullPrompt }]
+                    "role": "user",
+                    "parts": [
+                      { "text": fullPrompt },
+                      { "inlineData": { "mimeType": "application/pdf", "data": pdfBase64 } }
+                    ]
                 }]
             },
             {
