@@ -186,17 +186,11 @@ Rules:
 `;
 
 const REQUIREMENTS_PROMPT = `
-You are an expert in analyzing automation requests for n8n workflows. Your task is to analyze a user's automation request and return a JSON object that identifies ALL the specific technical details needed to build a production-ready workflow.
+You are an expert in analyzing automation requests for n8n workflows. Your task is to analyze a user's automation request and return a JSON object that identifies the technical details needed to build a production-ready workflow.
 
-IMPORTANT: Be comprehensive and ask for ALL necessary details including:
-- Authentication credentials and API keys
-- Server/service connection details (SMTP, database connections, etc.)
-- Specific configuration parameters
-- Input/output data formats
-- Error handling preferences
-- Security and privacy settings
-- Scheduling and timing details
-- Notification preferences
+IMPORTANT:
+- Prioritize the most critical information. Ask a maximum of two of the most vital questions to get the user started.
+- Focus on what is absolutely necessary for a basic, functional workflow. You can ask about credentials, key identifiers (like a specific channel or repository), or the main content for a message.
 
 Return ONLY a JSON object with this exact structure:
 {
