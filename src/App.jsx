@@ -88,7 +88,7 @@ function App() {
     setResponse(null);
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:3000/n8n-workflow', {
+      const res = await axios.post('https://n8nautomationgdg20251.onrender.com/n8n-workflow', {
         prompt: data.userInput,
       });
       setResponse(res.data);
@@ -135,7 +135,7 @@ function App() {
                 <p style={{ color: '#bbf7d0', margin: 0 }}>
                   Successfully generated, view it: {' '}
                   <a 
-                    href="http://localhost:5678/home/workflows" 
+                    href="https://n8nautomationgdg20251.onrender.com/home/workflows" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     style={{ color: '#6D28D9', textDecoration: 'underline' }}
