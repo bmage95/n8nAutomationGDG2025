@@ -70,18 +70,19 @@ Before running the project, ensure you have:
 ### 1️⃣ Backend
 
 Handles communication with Gemini and n8n.
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   cd backend  npm install   `
-
+`
+cd backend
+npm install   
+`
 Place master.pdf (n8n documentation) inside the backend/ folder.
 
 Create a .env:
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   GOOGLE_APPLICATION_CREDENTIALS_JSON={...}  # Minified Service Account JSON  N8N_API_KEY=your_n8n_api_key   `
+`GOOGLE_APPLICATION_CREDENTIALS_JSON={...}  # Minified Service Account JSON  N8N_API_KEY=your_n8n_api_key   `
 
 Start the server:
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   npm start   `
+`   npm start   `
 
 Backend URL: http://localhost:3000
 
