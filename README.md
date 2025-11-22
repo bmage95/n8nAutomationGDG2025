@@ -70,10 +70,12 @@ Before running the project, ensure you have:
 ### 1️⃣ Backend
 
 Handles communication with Gemini and n8n.
+
 `
 cd backend
 npm install   
 `
+
 Place master.pdf (n8n documentation) inside the backend/ folder.
 
 Create a .env:
